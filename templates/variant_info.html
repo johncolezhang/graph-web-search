@@ -46,7 +46,7 @@
             success: function (response) {
                 let result = response.success;
                 if (result === true) {
-                    let table_str = "<br><h3>双体型" + $("#diplotype_name").val() + "详情</h3>";
+                    let table_str = "<br><h3>双体型" + $("#diplotype_name").val() + " 详情</h3>";
                     table_str += "<table border= '1'>";
                     table_str += "<tr><td>diplotype_name</td><td>" + response.diplotype_name + "</td></tr>";
                     table_str += "<tr><td>phenotype</td><td>" + response.result.phenotype + "</td></tr>";
@@ -56,7 +56,7 @@
                     table_str += "<tr><td>update_date</td><td>" + response.result.update_date + "</td></tr>";
                     table_str += "</table>";
                     if (response.result.frequency.bio_geo.length > 0) {
-                        table_str += "<br><h3>双体型" + $("#diplotype_name").val() + "频率</h3>";
+                        table_str += "<br><h3>双体型" + $("#diplotype_name").val() + " 频率</h3>";
                         table_str += "<table border= '1'><tr><th>区域</th><th>频率</th></tr>";
                         for (let i = 0; i < response.result.frequency.bio_geo.length; i++) {
                             table_str += "<tr><td>" +
@@ -65,7 +65,7 @@
                                          response.result.frequency.bio_geo[i].frequency +
                                          "</td></tr>";
                         }
-                    table_str += "<tr><td>更新时间</td><td>" + response.result.frequency.update_date + "</td></tr></table>";
+                        table_str += "<tr><td>更新时间</td><td>" + response.result.frequency.update_date + "</td></tr></table>";
                     }
 
                     $("#diplotype_detail").html(table_str);
@@ -75,6 +75,64 @@
             },
             error: function (e) {
                 $("#diplotype_detail").html("双体型查询失败！");
+            }
+        });
+    });
+
+    $("#haplotype_submit").click(function() {
+        $.ajax({
+            url: "http://172.16.229.46:9000/neo4j_data_query/get_haplotype_info",
+            type: "POST",
+            dataType: "json",
+            data: {
+                "haplotype_name": $("#haplotype_name").val()
+            },
+            success: function (response) {
+                let result = response.success;
+                if (result === true) {
+                    let table_str = "<br><h3>单体型" + $("#haplotype_name").val() + " 详情</h3>";
+                    table_str += "<table border= '1'>";
+                    table_str += "<tr><td>haplotype_name</td><td>" + response.haplotype_name + "</td></tr>";
+                    table_str += "<tr><td>is_reference</td><td>" + response.result.is_reference + "</td></tr>";
+                    table_str += "<tr><td>NC_code</td><td>" + response.result.NC_change_code + "</td></tr>";
+                    table_str += "<tr><td>NG_code</td><td>" + response.result.NG_change_code + "</td></tr>";
+                    table_str += "<tr><td>nucleotide_code</td><td>" + response.result.nucleotide_change_code + "</td></tr>";
+                    table_str += "<tr><td>protein_code</td><td>" + response.result.protein_change_code + "</td></tr>";
+                    table_str += "<tr><td>update_date</td><td>" + response.result.update_date + "</td></tr>";
+                    table_str += "</table>";
+                    if (response.result.frequency.bio_geo.length > 0) {
+                        table_str += "<br><h3>单体型" + $("#haplotype_name").val() + " 频率</h3>";
+                        table_str += "<table border= '1'><tr><th>区域</th><th>频率</th></tr>";
+                        for (let i = 0; i < response.result.frequency.bio_geo.length; i++) {
+                            table_str += "<tr><td>" +
+                                         response.result.frequency.bio_geo[i].area +
+                                         "</td><td>" +
+                                         response.result.frequency.bio_geo[i].frequency +
+                                         "</td></tr>";
+                        }
+                        table_str += "<tr><td>更新时间</td><td>" + response.result.frequency.update_date + "</td></tr></table>";
+                    }
+
+                    if (response.result.functionality.functionality.length > 0) {
+                        table_str += "<br><h3>单体型" + $("#haplotype_name").val() + " Functionality</h3>";
+                        table_str += "<table border= '1'>";
+                        for (let i = 0; i < response.result.functionality.functionality.length; i++) {
+                            table_str += "<tr><td>" +
+                                         response.result.functionality.functionality[i].name +
+                                         "</td><td>" +
+                                         response.result.functionality.functionality[i].detail +
+                                         "</td></tr>";
+                        }
+                        table_str += "<tr><td>更新时间</td><td>" + response.result.frequency.update_date + "</td></tr></table>";
+                    }
+
+                    $("#haplotype_detail").html(table_str);
+                } else {
+                    $("#haplotype_detail").html("单体型查询失败！" + response.message);
+                }
+            },
+            error: function (e) {
+                $("#haplotype_detail").html("单体型查询失败！");
             }
         });
     });

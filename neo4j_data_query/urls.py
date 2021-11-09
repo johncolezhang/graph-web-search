@@ -11,6 +11,7 @@ urlpatterns = [
     path("get_nmpa_drugs", views.get_nmpa_drugs),
     path("get_ATC_info", views.get_ATC_info),
     path("get_diplotype_info", views.get_diplotype_info),
+    path("get_haplotype_info", views.get_haplotype_info),
     path("get_drug_info", views.get_drug_info),
     path("get_guideline_info", views.get_guideline_info),
     path("get_similar_drugs", views.get_similar_drugs),

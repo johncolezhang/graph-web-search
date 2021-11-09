@@ -118,7 +118,7 @@ def get_diplotype_info(request):
     except:
         return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
 
-        # 需要获取药物详情，医保标签，FDA黑框标签
+    # 需要获取药物详情，医保标签，FDA黑框标签
     n_util = neo4jUtil()
     query_template = """
     MATCH (n:diplotype {{display: "{}"}}) RETURN properties(n) as properties
@@ -139,6 +139,51 @@ def get_diplotype_info(request):
         result = dict()
 
     response_dict = {"success": True, "diplotype_name": diplotype_name, "result": result}
+    return HttpResponse(json.dumps(response_dict, indent=4))
+
+
+def get_haplotype_info(request):
+    """
+    输入单体型，获取双体型详情
+    :param request:
+    :return:
+    """
+    if request.method != 'POST':
+        return HttpResponse(json.dumps({"success": False, "message": "请使用post调用接口"}, indent=4))
+
+    try:
+        haplotype_name = request.POST['haplotype_name']
+    except:
+        return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
+
+    n_util = neo4jUtil()
+    query_template = """
+    MATCH (n:haplotype {{display: "{}"}}) RETURN properties(n) as properties
+    """.format(haplotype_name)
+
+    result = n_util.run_cypher(query_template)
+
+    if len(result) > 0:
+        result = result[0]["properties"]
+        frequency_dict = json.loads(result.get("frequency", "{}").replace("'", "\""))
+        frequency_list = []
+        for key, value in frequency_dict.items():
+            if key != "update_date":
+                frequency_list.append({"area": key, "frequency": value})
+        frequency_dict = {"bio_geo": frequency_list, "update_date": frequency_dict.get("update_date", "")}
+        result["frequency"] = frequency_dict
+
+        functionality_dict = json.loads(result.get("functionality", "{}").replace("'", "\""))
+        functionality_list = []
+        for key, value in functionality_dict.items():
+            if key != "update_date":
+                functionality_list.append({"name": key, "detail": value})
+        functionality_dict = {"functionality": functionality_list, "update_date": functionality_dict.get("update_date", "")}
+        result["functionality"] = functionality_dict
+    else:
+        result = dict()
+
+    response_dict = {"success": True, "haplotype_name": haplotype_name, "result": result}
     return HttpResponse(json.dumps(response_dict, indent=4))
 
 
