@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>知识库工具</title>
+
+    <style>
+        body {background-color: powderblue;}
+    </style>
+</head>
+<body>
+<a href="/neo4j_data_query/variant_info_page">跳转到变异详情页面</a>
+<h1>知识库工具</h1>
+
+<form action="" method="post">
+    <h3>输入坐标，用逗号，分号，空格或回车分隔</h3>
+    position: <textarea name="position" id="position" style="width:400px; height:100px"></textarea><br/>
+    <br>
+<button id="position_submit" type="button">开始转换</button>
+</form>
+
+<div id="from_position_to_haplotype"></div>
+<div id="from_position_to_rsID"></div>
+
+<br><hr>
+
+<form action="" method="post">
+    <h3>输入rsID，用逗号，分号，空格或回车分隔</h3>
+    rsID: <textarea name="rsID" id="rsID" style="width:400px; height:100px"></textarea><br/>
+    <br>
+<button id="rsID_submit" type="button">开始转换</button>
+</form>
+
+<div id="from_rsID_to_haplotype"></div>
+<div id="from_rsID_to_position"></div>
+
+<br><hr>
+
+<form action="" method="post">
+    <h3>输入基因型</h3>
+    haplotype: <label><input type="text" name="haplotype_name" id="haplotype_name" value=""></label><br/>
+    <br>
+<button id="haplotype_submit" type="button">开始转换</button>
+</form>
+
+<div id="haplotype_detail"></div>
+<div id="from_haplotype_to_position_and_rsID"></div>
+
+</body>
+</html>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script type="application/javascript">
+    $("#position_submit").click(function() {
+        // 基因型转换
+        $.ajax({
+            url: "http://172.16.229.46:9000/neo4j_data_query/from_position_to_haplotype",
+            type: "POST",
+            dataType: "json",
+            data: {
+                "position": $("#position").val()
+            },
+            success: function (response) {
+                let result = response.success;
+                if (result === true) {
+                    let table_str = "<br><h3>基因型转换</h3>"
+                    table_str += "<table border= '1'><tr><th>基因型</th><th>坐标</th></tr>";
+                    for (let i = 0; i < response.result.length; i++) {
+                        table_str += "<tr><td>" +
+                                     response.result[i].haplotype +
+                                     "</td><td>" +
+                                     JSON.stringify(response.result[i].position) +
+                                     "</td></tr>";
+                    }
+                    table_str += "</table>";
+                    $("#from_position_to_haplotype").html(table_str);
+                } else {
+                    $("#from_position_to_haplotype").html("基因型转换失败！" + response.message);
+                }
+            },
+            error: function (e) {
+                $("#from_position_to_haplotype").html("基因型转换失败！");
+            }
+        });
+
+        // rsID转换
+        $.ajax({
+            url: "http://172.16.229.46:9000/neo4j_data_query/from_position_to_rsID",
+            type: "POST",
+            dataType: "json",
+            data: {
+                "position": $("#position").val()
+            },
+            success: function (response) {
+                let result = response.success;
+                if (result === true) {
+                    let table_str = "<br><h3>rsID转换</h3>"
+                    table_str += "<table border= '1'><tr><th>坐标</th><th>rsID</th></tr>";
+                    for (let i = 0; i < response.result.length; i++) {
+                        table_str += "<tr><td>" +
+                                     response.result[i].position +
+                                     "</td><td>" +
+                                     response.result[i].rsID +
+                                     "</td></tr>";
+                    }
+                    table_str += "</table>";
+                    $("#from_position_to_rsID").html(table_str);
+                } else {
+                    $("#from_position_to_rsID").html("rsID转换失败！" + response.message);
+                }
+            },
+            error: function (e) {
+                $("#from_position_to_rsID").html("rsID转换失败！");
+            }
+        });
+    });
+
+    $("#rsID_submit").click(function() {
+        // 基因型转换
+        $.ajax({
+            url: "http://172.16.229.46:9000/neo4j_data_query/from_rsID_to_haplotype",
+            type: "POST",
+            dataType: "json",
+            data: {
+                "rsID": $("#rsID").val()
+            },
+            success: function (response) {
+                let result = response.success;
+                if (result === true) {
+                    let table_str = "<br><h3>基因型转换</h3>"
+                    table_str += "<table border= '1'><tr><th>基因型</th><th>rsID</th></tr>";
+                    for (let i = 0; i < response.result.length; i++) {
+                        table_str += "<tr><td>" +
+                                     response.result[i].haplotype +
+                                     "</td><td>" +
+                                     JSON.stringify(response.result[i].rsID) +
+                                     "</td></tr>";
+                    }
+                    table_str += "</table>";
+                    $("#from_rsID_to_haplotype").html(table_str);
+                } else {
+                    $("#from_rsID_to_haplotype").html("基因型转换失败！" + response.message);
+                }
+            },
+            error: function (e) {
+                $("#from_rsID_to_haplotype").html("基因型转换失败！");
+            }
+        });
+
+        // 坐标转换
+        $.ajax({
+            url: "http://172.16.229.46:9000/neo4j_data_query/from_rsID_to_position",
+            type: "POST",
+            dataType: "json",
+            data: {
+                "rsID": $("#rsID").val()
+            },
+            success: function (response) {
+                let result = response.success;
+                if (result === true) {
+                    let table_str = "<br><h3>坐标转换</h3>"
+                    table_str += "<table border= '1'><tr><th>rsID</th><th>坐标</th></tr>";
+                    for (let i = 0; i < response.result.length; i++) {
+                        table_str += "<tr><td>" +
+                                     response.result[i].rsID +
+                                     "</td><td>" +
+                                     response.result[i].position +
+                                     "</td></tr>";
+                    }
+                    table_str += "</table>";
+                    $("#from_rsID_to_position").html(table_str);
+                } else {
+                    $("#from_rsID_to_position").html("坐标转换失败！" + response.message);
+                }
+            },
+            error: function (e) {
+                $("#from_rsID_to_position").html("坐标转换失败！");
+            }
+        });
+    });
+
+    $("#haplotype_submit").click(function() {
+        // 基因型转换
+        $.ajax({
+            url: "http://172.16.229.46:9000/neo4j_data_query/from_haplotype_to_position_and_rsID",
+            type: "POST",
+            dataType: "json",
+            data: {
+                "haplotype_name": $("#haplotype_name").val()
+            },
+            success: function (response) {
+                let result = response.success;
+                if (result === true) {
+                    let is_reference = "False"
+                    if (result.is_reference === true) {
+                        is_reference = "True"
+                    }
+                    let table_str = "<br><h3>坐标及rsID转换</h3>"
+                    table_str += "<table border= '1'><tr><th>基因型</th><th>坐标</th><th>rsID</th><th>is_reference</th></tr>";
+                    table_str += "<tr><td>" +
+                                 $("#haplotype_name").val() +
+                                 "</td><td>" +
+                                 JSON.stringify(response.result.position_list) +
+                                 "</td><td>" +
+                                 JSON.stringify(response.result.rsID_list) +
+                                 "</td><td>" +
+                                 is_reference +
+                                 "</td></tr>" +
+                                 "</table>";
+
+                    $("#from_haplotype_to_position_and_rsID").html(table_str);
+                } else {
+                    $("#from_haplotype_to_position_and_rsID").html("基因型转换失败！" + response.message);
+                }
+            },
+            error: function (e) {
+                $("#from_haplotype_to_position_and_rsID").html("基因型转换失败！");
+            }
+        });
+    });
+
+</script>

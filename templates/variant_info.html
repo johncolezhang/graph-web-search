@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>知识库工具</title>
+    <style>
+        body {background-color: powderblue;}
+    </style>
+</head>
+<body>
+<a href="/neo4j_data_query/variant_mapping_page">跳转到变异映射页面</a>
+
+<h1>知识库工具</h1>
+
+<form action="" method="post">
+    <h3>输入单体型</h3>
+    haplotype: <label><input type="text" name="haplotype_name" id="haplotype_name" value=""></label><br/>
+    <br>
+<button id="haplotype_submit" type="button">提交</button>
+</form>
+
+<div id="haplotype_detail"></div>
+
+<br><hr>
+
+<form action="" method="post">
+    <h3>输入双体型</h3>
+    diplotype: <label><input type="text" name="diplotype_name" id="diplotype_name" value=""></label><br/>
+    <br>
+<button id="diplotype_submit" type="button">提交</button>
+</form>
+
+<div id="diplotype_detail"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script type="application/javascript">
+    $("#diplotype_submit").click(function() {
+        $.ajax({
+            url: "http://172.16.229.46:9000/neo4j_data_query/get_diplotype_info",
+            type: "POST",
+            dataType: "json",
+            data: {
+                "diplotype_name": $("#diplotype_name").val()
+            },
+            success: function (response) {
+                let result = response.success;
+                if (result === true) {
+                    let table_str = "<br><h3>双体型" + $("#diplotype_name").val() + "详情</h3>";
+                    table_str += "<table border= '1'>";
+                    table_str += "<tr><td>diplotype_name</td><td>" + response.diplotype_name + "</td></tr>";
+                    table_str += "<tr><td>phenotype</td><td>" + response.result.phenotype + "</td></tr>";
+                    table_str += "<tr><td>consultation</td><td>" + response.result.consultation + "</td></tr>";
+                    table_str += "<tr><td>activity_score</td><td>" + response.result.activity_score + "</td></tr>";
+                    table_str += "<tr><td>ehr_notation</td><td>" + response.result.ehr_notation + "</td></tr>";
+                    table_str += "<tr><td>update_date</td><td>" + response.result.update_date + "</td></tr>";
+                    table_str += "</table>";
+                    if (response.result.frequency.bio_geo.length > 0) {
+                        table_str += "<br><h3>双体型" + $("#diplotype_name").val() + "频率</h3>";
+                        table_str += "<table border= '1'><tr><th>区域</th><th>频率</th></tr>";
+                        for (let i = 0; i < response.result.frequency.bio_geo.length; i++) {
+                            table_str += "<tr><td>" +
+                                         response.result.frequency.bio_geo[i].area +
+                                         "</td><td>" +
+                                         response.result.frequency.bio_geo[i].frequency +
+                                         "</td></tr>";
+                        }
+                    table_str += "<tr><td>更新时间</td><td>" + response.result.frequency.update_date + "</td></tr></table>";
+                    }
+
+                    $("#diplotype_detail").html(table_str);
+                } else {
+                    $("#diplotype_detail").html("双体型查询失败！" + response.message);
+                }
+            },
+            error: function (e) {
+                $("#diplotype_detail").html("双体型查询失败！");
+            }
+        });
+    });
+
+</script>
+
+</body>
+</html>
