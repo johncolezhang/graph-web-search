@@ -53,6 +53,7 @@
                     let table_str = "<br><h3>双体型" + $("#diplotype_name").val() + " 详情</h3>";
                     table_str += "<table border= '1'>";
                     table_str += "<tr><td>diplotype_name</td><td>" + response.diplotype_name + "</td></tr>";
+                    table_str += "<tr><td>phenotype</td><td>" + response.result.phenotype + "</td></tr>";
                     table_str += "<tr><td>consultation</td><td>" + response.result.consultation + "</td></tr>";
                     table_str += "<tr><td>activity_score</td><td>" + response.result.activity_score + "</td></tr>";
                     table_str += "<tr><td>ehr_notation</td><td>" + response.result.ehr_notation + "</td></tr>";
