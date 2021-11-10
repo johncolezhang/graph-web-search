@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>知识库工具</title>
+    <style>
+        body {background-color: powderblue;}
+    </style>
+</head>
+<body>
+<a href="/neo4j_data_query/variant_mapping_page">跳转到变异映射页面</a>
+<br>
+<a href="/neo4j_data_query/variant_info_page">跳转到变异详情页面</a>
+<br>
+<a href="/neo4j_data_query/variant_drug_page">跳转到变异药物查询页面</a>
+
+<h1>知识库工具</h1>
+
+<form action="" method="post">
+    <h3>输入 rsID/单体型/双体型</h3>
+    输入: <label><input type="text" name="variant_name" id="variant_name" value=""></label><br/>
+    <br>
+    类型：<input type="radio" name="variant_type" value="rsID" id="rsID" checked="checked"><label for="rsID">rsID</label>
+    <input type="radio" name="variant_type" value="haplotype" id="haplotype"><label for="haplotype">单体型</label>
+    <input type="radio" name="variant_type" value="diplotype" id="diplotype"><label for="diplotype">双体型</label>
+    <input type="radio" name="variant_type" value="gene" id="gene"><label for="gene">基因</label>
+    <br><br>
+
+    <h3>输入化学物名</h3>
+    输入: <label><input type="text" name="chemical_name" id="chemical_name" value=""></label><br/>
+    <br>
+
+    <button id="submit" type="button">提交</button>
+</form>
+
+<br>
+
+<div id="display"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script type="application/javascript">
+    $("#submit").click(function() {
+        var variant_type = $("input[name='variant_type']:checked").val();
+        var url = "http://172.16.229.46:9000/neo4j_data_query/get_rsID_chemical_relation"
+        var data = {
+            "rsID": $("#variant_name").val(),
+            "chemical_name": $("#chemical_name").val()
+        }
+        if (variant_type === "gene") {
+            url = "http://172.16.229.46:9000/neo4j_data_query/get_gene_chemical_relation"
+            data = {
+                "gene_name": $("#variant_name").val(),
+                "chemical_name": $("#chemical_name").val()
+            }
+        } else if (variant_type === "haplotype") {
+            url = "http://172.16.229.46:9000/neo4j_data_query/get_haplotype_chemical_relation"
+            data = {
+                "haplotype_name": $("#variant_name").val(),
+                "chemical_name": $("#chemical_name").val()
+            }
+        } else if (variant_type === "diplotype") {
+            url = "http://172.16.229.46:9000/neo4j_data_query/get_diplotype_chemical_relation"
+            data = {
+                "diplotype_name": $("#variant_name").val(),
+                "chemical_name": $("#chemical_name").val()
+            }
+        }
+
+        $.ajax({
+            url: url,
+            type: "POST",
+            dataType: "json",
+            data: data,
+            success: function (response) {
+                let result = response.success;
+                if (result === true) {
+                    let table_str = "<h3>" + variant_type + ": " +
+                                    $("#variant_name").val() + " 与 化合物: " +
+                                    $("#chemical_name").val() + " 的关系数据</h3>";
+
+                    table_str += "<h4>" + variant_type + ": " + $("#variant_name").val() + " 实体数据表</h4>"
+                    table_str += "<br><table border= '1'><tr><th>KEY</th><th>VALUE</th></tr>";
+                    for (let i = 0; i < response.result.var.length; i++) {
+                        table_str += "<tr><td>" + response.result.var[i].key + "</td><td>" + response.result.var[i].detail + "</td></tr>";
+                    }
+                    table_str += "</table><br>";
+
+                    table_str += "<h4>化合物: " + $("#chemical_name").val() + " 实体数据表</h4>"
+                    table_str += "<br><table border= '1'><tr><th>KEY</th><th>VALUE</th></tr>";
+                    for (let i = 0; i < response.result.chemical.length; i++) {
+                        table_str += "<tr><td>" + response.result.chemical[i].key + "</td><td>" + response.result.chemical[i].detail + "</td></tr>";
+                    }
+                    table_str += "</table><br>";
+
+                    for (let i = 0; i < response.result.relation.length; i++) {
+                        let relation_info = response.result.relation[i];
+                        let relation_type = "";
+                        let sub_table_str = "<br><table border= '1'><tr><th>KEY</th><th>VALUE</th></tr>";
+                        for (let j = 0; j < response.result.relation[i].length; j++) {
+                            sub_table_str += "<tr><td>" + response.result.relation[i][j].key + "</td><td>" + response.result.relation[i][j].detail + "</td></tr>";
+                            if (response.result.relation[i][j].key == "relation_type") {
+                                relation_type = response.result.relation[i][j].detail;
+                            }
+                        }
+                        table_str += "<h4>" + variant_type + ": " +
+                                     $("#variant_name").val() + " 与 化合物: " +
+                                     $("#chemical_name").val() + " 的 " +
+                                     relation_type + " 关系数据</h4>";
+                        table_str += sub_table_str;
+                        table_str += "</table><br>";
+                    }
+
+                    $("#display").html(table_str);
+                } else {
+                    $("#display").html("查询失败！" + response.message);
+                }
+            },
+             error: function (e) {
+                $("#display").html("查询失败！");
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

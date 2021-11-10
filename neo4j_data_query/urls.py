@@ -6,6 +6,7 @@ urlpatterns = [
     path("", views.variant_mapping_page),
     path("variant_mapping_page", views.variant_mapping_page),
     path("variant_info_page", views.variant_info_page),
+    path("variant_drug_page", views.variant_drug_page),
     path("get_genes", views.get_genes),
     path("get_gene_genotypes", views.get_gene_genotypes),
     path("get_nmpa_drugs", views.get_nmpa_drugs),
@@ -21,4 +22,8 @@ urlpatterns = [
     path("from_position_to_rsID", views.from_position_to_rsID),
     path("from_rsID_to_position", views.from_rsID_to_position),
     path("from_rsID_to_haplotype", views.from_rsID_to_haplotype),
+    path("get_rsID_chemical_relation", views.get_rsID_chemical_relation),
+    path("get_gene_chemical_relation", views.get_gene_chemical_relation),
+    path("get_haplotype_chemical_relation", views.get_haplotype_chemical_relation),
+    path("get_diplotype_chemical_relation", views.get_diplotype_chemical_relation),
 ]

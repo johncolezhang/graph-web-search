@@ -13,6 +13,9 @@ def variant_mapping_page(request):
 def variant_info_page(request):
     return render(request, "variant_info.html")
 
+def variant_drug_page(request):
+    return render(request, "variant_drug.html")
+
 def get_genes(request):
     """
     获取所有基因list
@@ -114,7 +117,7 @@ def get_diplotype_info(request):
         return HttpResponse(json.dumps({"success": False, "message": "请使用post调用接口"}, indent=4))
 
     try:
-        diplotype_name = request.POST['diplotype_name']
+        diplotype_name = request.POST['diplotype_name'].strip()
     except:
         return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
 
@@ -152,7 +155,7 @@ def get_haplotype_info(request):
         return HttpResponse(json.dumps({"success": False, "message": "请使用post调用接口"}, indent=4))
 
     try:
-        haplotype_name = request.POST['haplotype_name']
+        haplotype_name = request.POST['haplotype_name'].strip()
     except:
         return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
 
@@ -372,7 +375,7 @@ def from_position_to_haplotype(request):
     except:
         return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
 
-    position_list = list(filter(lambda x: x.strip() != "", re.split("[ |;|,|\n]", position)))
+    position_list = list(filter(lambda x: x.strip() != "", re.split("[ |;|,|\n]", re.sub(r"[\"|'|\[|\]]", "", position))))
 
     result = pos_mapping.position_to_haplotype(position_list=position_list)
     response_dict = {"success": True, "position": position_list, "result": result}
@@ -393,7 +396,7 @@ def from_position_to_rsID(request):
     except:
         return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
 
-    position_list = list(filter(lambda x: x.strip() != "", re.split("[ |;|,|\n]", position)))
+    position_list = list(filter(lambda x: x.strip() != "", re.split("[ |;|,|\n]", re.sub(r"[\"|'|\[|\]]", "", position))))
 
     result = pos_mapping.position_to_rsID(position_list=position_list)
     response_dict = {"success": True, "position": position_list, "result": result}
@@ -414,7 +417,7 @@ def from_rsID_to_position(request):
     except:
         return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
 
-    rsID_list = list(filter(lambda x: x.strip() != "", re.split("[ |;|,|\n]", rsID)))
+    rsID_list = list(filter(lambda x: x.strip() != "", re.split("[ |;|,|\n]", re.sub(r"[\"|'|\[|\]]", "", rsID))))
     result = pos_mapping.rsID_to_position(rsID_list=rsID_list)
     response_dict = {"success": True, "rsID": rsID_list, "result": result}
     return HttpResponse(json.dumps(response_dict, indent=4))
@@ -434,8 +437,263 @@ def from_rsID_to_haplotype(request):
     except:
         return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
 
-    rsID_list = list(filter(lambda x: x.strip() != "", re.split("[ |;|,|\n]", rsID)))
+    rsID_list = list(filter(lambda x: x.strip() != "", re.split("[ |;|,|\n]", re.sub(r"[\"|'|\[|\]]", "", rsID))))
     result = pos_mapping.rsID_to_haplotype(rsID_list=rsID_list)
     response_dict = {"success": True, "rsID": rsID_list, "result": result}
+    return HttpResponse(json.dumps(response_dict, indent=4))
+
+
+def get_rsID_chemical_relation(request):
+    """
+    输入rsID及化学物名，返回关系数据
+    :param request:
+    :return:
+    """
+    if request.method != 'POST':
+        return HttpResponse(json.dumps({"success": False, "message": "请使用post调用接口"}, indent=4))
+
+    try:
+        rsID = request.POST['rsID']
+        chemical_name = request.POST['chemical_name']
+    except:
+        return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
+
+    n_util = neo4jUtil()
+    query_template = """
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:diplotype_metabolizer]-(rs:rsID {{variant_name: "{rsID}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(rs) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:drug_label]-(rs:rsID {{variant_name: "{rsID}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(rs) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:cpic_guideline]-(rs:rsID {{variant_name: "{rsID}"}})
+    where r.CPIC_level = "A" or r.PGKB_evidence_level =~ "1[A|B]"
+    return properties(che) as che_properties, properties(r) as r_properties, properties(rs) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:guideline_annotation]-(rs:rsID {{variant_name: "{rsID}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(rs) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})-[r:clinical_annotation]-(rs:rsID {{variant_name: "{rsID}"}})
+    where r.evidence_level =~ "1[A|B]"
+    return properties(che) as che_properties, properties(r) as r_properties, properties(rs) as var_properties, type(r) as relation_type
+    """.format(chemical_name=chemical_name, rsID=rsID)
+
+    result = n_util.run_cypher(query_template)
+    if len(result) != 0:
+        che_node = result[0]["che_properties"]
+        che_info_list = []
+        for key in ["chemical_name", "atc_code", "L1_info", "L2_info", "L3_info", "L4_info"]:
+            che_info_list.append({"key": key, "detail": che_node[key]})
+
+        rs_node = result[0]["var_properties"]
+        rs_info_list = []
+        for key in rs_node.keys():
+            if key not in ["display"]:
+                rs_info_list.append({"key": key, "detail": rs_node[key]})
+
+        relation_list = [{"relation": x["r_properties"], "relation_type": x["relation_type"]} for x in result]
+        all_relation_info_list = []
+        for relation in relation_list:
+            relation_info_list = [{"key": "relation_type", "detail": relation["relation_type"]}]
+            for key in relation["relation"].keys():
+                relation_info_list.append({"key": key, "detail": relation["relation"][key]})
+            all_relation_info_list.append(relation_info_list)
+
+        result = {"chemical": che_info_list, "var": rs_info_list, "relation": all_relation_info_list}
+    else:
+        result = {"chemical": [], "var": [], "relation": []}
+
+    response_dict = {"success": True, "name": rsID, "chemical": chemical_name, "result": result}
+    return HttpResponse(json.dumps(response_dict, indent=4))
+
+def get_gene_chemical_relation(request):
+    """
+    输入gene及化学物名，返回关系数据
+    :param request:
+    :return:
+    """
+    if request.method != 'POST':
+        return HttpResponse(json.dumps({"success": False, "message": "请使用post调用接口"}, indent=4))
+
+    try:
+        gene_name = request.POST['gene_name']
+        chemical_name = request.POST['chemical_name']
+    except:
+        return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
+
+    n_util = neo4jUtil()
+    query_template = """
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:diplotype_metabolizer]-(ge:gene {{gene_name: "{gene_name}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(ge) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:drug_label]-(ge:gene {{gene_name: "{gene_name}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(ge) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:cpic_guideline]-(ge:gene {{gene_name: "{gene_name}"}})
+    where r.CPIC_level = "A" or r.PGKB_evidence_level =~ "1[A|B]"
+    return properties(che) as che_properties, properties(r) as r_properties, properties(ge) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:guideline_annotation]-(ge:gene {{gene_name: "{gene_name}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(ge) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})-[r:clinical_annotation]-(ge:gene {{gene_name: "{gene_name}"}})
+    where r.evidence_level =~ "1[A|B]"
+    return properties(che) as che_properties, properties(r) as r_properties, properties(ge) as var_properties, type(r) as relation_type
+    """.format(chemical_name=chemical_name, gene_name=gene_name)
+
+    result = n_util.run_cypher(query_template)
+    if len(result) != 0:
+        che_node = result[0]["che_properties"]
+        che_info_list = []
+        for key in ["chemical_name", "atc_code", "L1_info", "L2_info", "L3_info", "L4_info"]:
+            che_info_list.append({"key": key, "detail": che_node[key]})
+
+        gene_node = result[0]["var_properties"]
+        gene_info_list = []
+        for key in gene_node.keys():
+            if key not in ["display"]:
+                gene_info_list.append({"key": key, "detail": gene_node[key]})
+
+        relation_list = [{"relation": x["r_properties"], "relation_type": x["relation_type"]} for x in result]
+        all_relation_info_list = []
+        for relation in relation_list:
+            relation_info_list = [{"key": "relation_type", "detail": relation["relation_type"]}]
+            for key in relation["relation"].keys():
+                relation_info_list.append({"key": key, "detail": relation["relation"][key]})
+            all_relation_info_list.append(relation_info_list)
+
+        result = {"chemical": che_info_list, "var": gene_info_list, "relation": all_relation_info_list}
+    else:
+        result = {"chemical": [], "var": [], "relation": []}
+
+    response_dict = {"success": True, "name": gene_name, "chemical": chemical_name, "result": result}
+    return HttpResponse(json.dumps(response_dict, indent=4))
+
+
+def get_haplotype_chemical_relation(request):
+    """
+    输入单体型及化学物名，返回关系数据
+    :param request:
+    :return:
+    """
+    if request.method != 'POST':
+        return HttpResponse(json.dumps({"success": False, "message": "请使用post调用接口"}, indent=4))
+
+    try:
+        haplotype_name = request.POST['haplotype_name']
+        chemical_name = request.POST['chemical_name']
+    except:
+        return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
+
+    n_util = neo4jUtil()
+    query_template = """
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:diplotype_metabolizer]-(hap:haplotype {{variant_name: "{haplotype_name}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(hap) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:drug_label]-(hap:haplotype {{variant_name: "{haplotype_name}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(hap) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:cpic_guideline]-(hap:haplotype {{variant_name: "{haplotype_name}"}})
+    where r.CPIC_level = "A" or r.PGKB_evidence_level =~ "1[A|B]"
+    return properties(che) as che_properties, properties(r) as r_properties, properties(hap) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:guideline_annotation]-(hap:haplotype {{variant_name: "{haplotype_name}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(hap) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})-[r:clinical_annotation]-(hap:haplotype {{variant_name: "{haplotype_name}"}})
+    where r.evidence_level =~ "1[A|B]"
+    return properties(che) as che_properties, properties(r) as r_properties, properties(hap) as var_properties, type(r) as relation_type
+    """.format(chemical_name=chemical_name, haplotype_name=haplotype_name)
+
+    result = n_util.run_cypher(query_template)
+    if len(result) != 0:
+        che_node = result[0]["che_properties"]
+        che_info_list = []
+        for key in ["chemical_name", "atc_code", "L1_info", "L2_info", "L3_info", "L4_info"]:
+            che_info_list.append({"key": key, "detail": che_node[key]})
+
+        hap_node = result[0]["var_properties"]
+        hap_info_list = []
+        for key in hap_node.keys():
+            if key not in ["display"]:
+                hap_info_list.append({"key": key, "detail": hap_node[key]})
+
+        relation_list = [{"relation": x["r_properties"], "relation_type": x["relation_type"]} for x in result]
+        all_relation_info_list = []
+        for relation in relation_list:
+            relation_info_list = [{"key": "relation_type", "detail": relation["relation_type"]}]
+            for key in relation["relation"].keys():
+                relation_info_list.append({"key": key, "detail": relation["relation"][key]})
+            all_relation_info_list.append(relation_info_list)
+
+        result = {"chemical": che_info_list, "var": hap_info_list, "relation": all_relation_info_list}
+    else:
+        result = {"chemical": [], "var": [], "relation": []}
+
+    response_dict = {"success": True, "name": haplotype_name, "chemical": chemical_name, "result": result}
+    return HttpResponse(json.dumps(response_dict, indent=4))
+
+
+def get_diplotype_chemical_relation(request):
+    """
+    输入双体型及化学物名，返回关系数据
+    :param request:
+    :return:
+    """
+    if request.method != 'POST':
+        return HttpResponse(json.dumps({"success": False, "message": "请使用post调用接口"}, indent=4))
+
+    try:
+        diplotype_name = request.POST['diplotype_name']
+        chemical_name = request.POST['chemical_name']
+    except:
+        return HttpResponse(json.dumps({"success": False, "message": "请检查参数输入"}, indent=4))
+
+    n_util = neo4jUtil()
+    query_template = """
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:diplotype_metabolizer]-(dip:diplotype {{diplotype_name: "{diplotype_name}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(dip) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:drug_label]-(dip:diplotype {{diplotype_name: "{diplotype_name}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(dip) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:cpic_guideline]-(dip:diplotype {{diplotype_name: "{diplotype_name}"}})
+    where r.CPIC_level = "A" or r.PGKB_evidence_level =~ "1[A|B]"
+    return properties(che) as che_properties, properties(r) as r_properties, properties(dip) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})<-[r:guideline_annotation]-(dip:diplotype {{diplotype_name: "{diplotype_name}"}})
+    return properties(che) as che_properties, properties(r) as r_properties, properties(dip) as var_properties, type(r) as relation_type
+    union
+    match (che:chemical {{chemical_name: "{chemical_name}"}})-[r:clinical_annotation]-(dip:diplotype {{diplotype_name: "{diplotype_name}"}})
+    where r.evidence_level =~ "1[A|B]"
+    return properties(che) as che_properties, properties(r) as r_properties, properties(dip) as var_properties, type(r) as relation_type
+    """.format(chemical_name=chemical_name, diplotype_name=diplotype_name)
+
+    result = n_util.run_cypher(query_template)
+    if len(result) != 0:
+        che_node = result[0]["che_properties"]
+        che_info_list = []
+        for key in ["chemical_name", "atc_code", "L1_info", "L2_info", "L3_info", "L4_info"]:
+            che_info_list.append({"key": key, "detail": che_node[key]})
+
+        dip_node = result[0]["var_properties"]
+        dip_info_list = []
+        for key in dip_node.keys():
+            if key not in ["display"]:
+                dip_info_list.append({"key": key, "detail": dip_node[key]})
+
+        relation_list = [{"relation": x["r_properties"], "relation_type": x["relation_type"]} for x in result]
+        all_relation_info_list = []
+        for relation in relation_list:
+            relation_info_list = [{"key": "relation_type", "detail": relation["relation_type"]}]
+            for key in relation["relation"].keys():
+                relation_info_list.append({"key": key, "detail": relation["relation"][key]})
+            all_relation_info_list.append(relation_info_list)
+
+        result = {"chemical": che_info_list, "var": dip_info_list, "relation": all_relation_info_list}
+    else:
+        result = {"chemical": [], "var": [], "relation": []}
+
+    response_dict = {"success": True, "name": diplotype_name, "chemical": chemical_name, "result": result}
     return HttpResponse(json.dumps(response_dict, indent=4))
 
