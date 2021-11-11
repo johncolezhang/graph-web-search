@@ -50,3 +50,17 @@ def get_label_info(request):
 
     response_dict = {"success": True, "result": result_list}
     return HttpResponse(json.dumps(response_dict, indent=4))
+
+
+def get_all_labels(request):
+    try:
+        db_util = DbUtil()
+        result_list = db_util.select_table(
+            table_name="labels",
+            field_list=["label_tile"]
+        )
+    except Exception as e:
+        return HttpResponse(json.dumps({"success": False, "message": str(e)}, indent=4))
+
+    response_dict = {"success": True, "result": result_list}
+    return HttpResponse(json.dumps(response_dict, indent=4))
